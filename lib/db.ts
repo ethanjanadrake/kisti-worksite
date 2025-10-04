@@ -1,19 +1,25 @@
 import { MongoClient, ServerApiVersion } from "mongodb"
+import { Session } from "next-auth";
+import { PutBlobResult } from "@vercel/blob";
 
-if (!process.env.DB_URI) {
-    throw new Error("Mongo URI not found!")
+const getClient = (dbUri: string) => {
+  return (
+    new MongoClient(dbUri, {
+        serverApi: {
+            version: ServerApiVersion.v1,
+            strict: true,
+            deprecationErrors: true,
+        }
+    })
+  )
 }
 
-const client = new MongoClient(process.env.DB_URI, {
-    serverApi: {
-        version: ServerApiVersion.v1,
-        strict: true,
-        deprecationErrors: true,
+async function getDB(dbName: string, session: Session | null) {
+    const dbUri = session ? process.env.DB_URI_ADMIN : process.env.DB_URI 
+    if (!dbUri) {
+        throw new Error("No Database URI Found!")
     }
-})
-
-
-async function getDB(dbName: string) {
+    const client = getClient(dbUri)
     try {
         console.log("Connecting to Server")
         await client.connect()
@@ -25,11 +31,24 @@ async function getDB(dbName: string) {
     }
 }
 
-export default async function getCollection(collectionName: string) {
-    const db = await getDB('sample_mflix')
+export async function getCollection(collectionName: string, session: Session | null) {
+    const db = await getDB('sample_mflix', session)
+    if (!db) throw new Error("Database not found!")
     console.log("Getting Collection " + collectionName)
-    if (db) {
-        return db.collection(collectionName)
-    }
-    return null;
+    return db.collection(collectionName)
+}
+
+export async function uploadImage(
+	name: string,
+	url: PutBlobResult,
+    description: string,
+    session: Session | null
+) {
+    const collection = await getCollection('img_ref', session)
+	const results = await collection?.insertOne({
+		name,
+		url,
+		description,
+	});
+	console.log(results?.acknowledged);
 }

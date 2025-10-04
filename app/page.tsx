@@ -1,9 +1,9 @@
-import getCollection from "../lib/db";
+import { getCollection } from "../lib/db";
 import Image from "next/image";
 
 export default async function Home() {
 	const welcomeText = "Welcome to Kisti's Portfolio!";
-	const collection = await getCollection("img_ref");
+	const collection = await getCollection("img_ref", null);
 	const documents = await collection?.find().toArray();
 	documents?.forEach(doc => {
 		console.log(doc._id);

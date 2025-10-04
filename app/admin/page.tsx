@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
-import { put } from "@vercel/blob";
-import getCollection from "../../lib/db";
+import { uploadImage } from "../../lib/db";
+import { putImage } from "../../lib/blob";
 
 const Admin = async () => {
 	const session = await auth();
@@ -17,16 +17,21 @@ const Admin = async () => {
 
 async function handleUpload(formData: FormData) {
 	"use server";
-	const img = formData.get("image") as File;
-	const description = formData.get("description") as string;
-	const url = await put("pics/" + img.name, img, { access: "public" });
-	const collection = await getCollection("img_ref");
-	const results = await collection?.insertOne({
-		name: img.name,
-		url,
-		description,
-	});
-	console.log(results?.acknowledged);
+	const session = await auth();
+	if (!session) throw new Error("Not authorized to upload to the Database");
+	if (validateForm(formData)) {
+		const img = formData.get("image") as File;
+		const description = formData.get("description") as string;
+
+		const url = await putImage(img, session);
+		await uploadImage(img.name, url, description, session);
+	}
 }
+
+const validateForm = (formData: FormData) => {
+	if (!formData.get("image")) return false;
+	if (!formData.get("description")) return false;
+	return true;
+};
 
 export default Admin;
